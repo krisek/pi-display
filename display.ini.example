@@ -1,4 +1,3 @@
-[yahoo_weather]
+[openweathermap]
 app_id = 
-api_key = 
-api_secret = 
+city_id = 

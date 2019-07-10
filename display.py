@@ -17,8 +17,6 @@ import beats
 import sys
 from signal import alarm, signal, SIGALRM, SIGKILL
 
-from yahoo_weather.weather import YahooWeather
-from yahoo_weather.config.units import Unit
 import json
 import configparser
 
@@ -31,20 +29,27 @@ class Alarm(Exception):
 def alarm_handler(signum, frame):
     raise Alarm
 
-#os.putenv('SDL_FBDEV','/dev/fb1')
-#os.putenv('SDL_VIDEODRIVER', 'fbcon')
-os.environ['SDL_FBDEV'] = '/dev/fb1'
-os.environ['SDL_VIDEODRIVER'] = 'fbcon'
+
+
 pygame.init()
 pygame.mouse.set_visible(False)
-size = (pygame.display.Info().current_w, pygame.display.Info().current_h)
+if os.environ.get('TD','') == 'x11':
+    size = [800,600]
+else:
+    os.environ['SDL_FBDEV'] = '/dev/fb0'
+    os.environ['SDL_VIDEODRIVER'] = 'fbcon'
+    size = (pygame.display.Info().current_w, pygame.display.Info().current_h)
 
-print("Framebuffer size: %d x %d" % (size[0], size[1]))
+
+print("Display size: %d x %d" % (size[0], size[1]))
 signal(SIGALRM, alarm_handler)
 alarm(2)
 
 try:
-    screen = pygame.display.set_mode(size, pygame.FULLSCREEN)
+    if os.environ.get('TD','') == 'x11':
+        screen = pygame.display.set_mode(size) 
+    else:
+        screen = pygame.display.set_mode(size, pygame.FULLSCREEN)
     alarm(0)
 except Alarm:
     raise KeyboardInterrupt
@@ -108,25 +113,22 @@ pygame.display.flip()
 
 print('entering main loop')
 
-y_app_id = config.get('yahoo_weather', 'app_id')
-y_api_key = config.get('yahoo_weather', 'api_key')
-y_api_secret = config.get('yahoo_weather', 'api_secret')
-
-#init yahoo
-data = YahooWeather(APP_ID=y_app_id, api_key=y_api_key, api_secret=y_api_secret)
+o_app_id = config.get('openweathermap', 'app_id')
+o_city_id = config.get('openweathermap', 'city_id')
 
 while not done:
 
     if temperature_timer == 0:
         try:
             #print('trying to get temp data')
+            r = requests.get("http://api.openweathermap.org/data/2.5/weather?id=%s&appid=%s&units=metric" % (o_city_id, o_app_id), headers={'Content-type': 'application/json'})
+            data = json.loads(r.text)
+            print("received: " + json.dumps(data))
+            temperature = float(data['main']['temp'])
             
-            data.get_yahoo_weather_by_city("dusseldorf", Unit.celsius)
-            
-            
-            temperature = float(data.condition.temperature)
             x = random.randint(5,size[0]-12)
             y = random.randint(25,size[1]-25)
+            
             background = '#000000'
             color = '#ffffff'
             for color_item in colors:
@@ -134,12 +136,9 @@ while not done:
                 if colors[color_item]['min'] < temperature and colors[color_item]['max'] >= temperature:
                     background = colors[color_item]['background']
                     color = colors[color_item]['color']
-        except:
-            print("No temperature received, let's try to reconect")
-            try:
-                data = YahooWeather(APP_ID=y_app_id, api_key=y_api_key, api_secret=y_api_secret)
-            except:
-                print("no yahoo connection")
+        except Exception as e:
+            print("Exception " + str(e))
+            print('Error: {}'.format(sys.exc_info()[0]))
             x=10
             y=10
             
