@@ -124,7 +124,7 @@ while not done:
             data.get_yahoo_weather_by_city("dusseldorf", Unit.celsius)
             
             
-            temperature = float(data.condition.temperature())
+            temperature = float(data.condition.temperature)
             x = random.randint(5,size[0]-12)
             y = random.randint(25,size[1]-25)
             background = '#000000'
